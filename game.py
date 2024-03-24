@@ -7,6 +7,7 @@ from scripts.utils import *
 from scripts.tilemap import TileMap
 from scripts.clouds import Clouds
 from scripts.particle import Particle
+from scripts.spark import Spark
 import random
 
 # 界面大小
@@ -135,7 +136,9 @@ class Game:
             self.player.render(self.displayer, offset=render_scroll)
 
             for enemy in self.enemies.copy():
-                enemy.update(self.tilemap, (0, 0))
+                kill = enemy.update(self.tilemap, (0, 0))
+                if kill:
+                    self.enemies.remove(enemy)
                 enemy.render(self.displayer, offset=render_scroll)
 
             # projectile的格式： [[x,y],direction,timer]
@@ -147,6 +150,10 @@ class Game:
                                           projectile[0][1] - img.get_height() / 2 - render_scroll[1]))
                 if self.tilemap.solid_check(projectile[0]):
                     self.projectiles.remove(projectile)
+                    for i in range(4):
+                        self.sparks.append(
+                            Spark(projectile[0], random.random() - 0.5 + (math.pi if projectile[1] > 0 else 0),
+                                  2 + random.random()))
                 elif projectile[2] > 240:
                     self.projectiles.remove(projectile)
                 # 只要不是在冲刺过程中就判断是否击中，冲刺时是不会被击中的
@@ -154,11 +161,18 @@ class Game:
                     if self.player.rect().collidepoint(projectile[0]):
                         self.player.hit = projectile[1]
                         self.projectiles.remove(projectile)
-
+                        for i in range(15):
+                            angle = random.random() * math.pi * 2
+                            speed = random.random() * 5
+                            self.sparks.append(Spark(self.player.rect().center, angle, 2 + random.random()))
+                            self.particles.append(Particle(self, 'particle', self.player.rect().center,
+                                                           velocity=[math.cos(angle + math.pi) * speed * 0.5,
+                                                                     math.sin(angle + math.pi) * speed * 0.5],
+                                                           frame=random.randint(0, 7)))
             for spark in self.sparks.copy():
                 kill = spark.update()
-                spark.render(self.displayer,offset=render_scroll)
-                if self.kill:
+                spark.render(self.displayer, offset=render_scroll)
+                if kill:
                     self.sparks.remove(spark)
 
             for particle in self.particles.copy():
