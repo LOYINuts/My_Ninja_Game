@@ -150,7 +150,7 @@ class Game:
                 elif projectile[2] > 240:
                     self.projectiles.remove(projectile)
                 # 只要不是在冲刺过程中就判断是否击中，冲刺时是不会被击中的
-                elif abs(self.player.dashing < 20):
+                elif abs(self.player.dashing) < 50:
                     if self.player.rect().collidepoint(projectile[0]):
                         self.player.hit = projectile[1]
                         self.projectiles.remove(projectile)
