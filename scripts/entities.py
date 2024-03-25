@@ -209,6 +209,7 @@ class Player(PhysicsEntity):
         if self.hit == 0:
             if (self.collisions['right'] or self.collisions['left']) and self.air_time > 4:
                 self.wall_slide = True
+                self.air_time = 20
                 self.velocity[1] = min(self.velocity[1], 0.5)
                 if self.collisions['right']:
                     self.flip = False

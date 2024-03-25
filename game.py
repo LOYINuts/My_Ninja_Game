@@ -86,7 +86,8 @@ class Game:
         self.particles = []
         self.sparks = []
         self.scroll = [0, 0]
-        self.lives = 3
+        self.maxlives = 3
+        self.lives = self.maxlives
         self.level = 0
         self.total_levels = 2
         self.load_settings()
@@ -101,7 +102,7 @@ class Game:
         f = open("settings.json", "r")
         game_settings = json.load(f)
         self.total_levels = game_settings['total_levels'] - 1
-        self.lives = game_settings['lives']
+        self.maxlives = game_settings['lives']
 
     def load_level(self, map_id):
         pygame.mixer.music.stop()
@@ -128,7 +129,7 @@ class Game:
         self.projectiles = []
         self.particles = []
         self.scroll = [0, 0]
-        self.lives = 3
+        self.lives = self.maxlives
         self.transition = -40
 
     def run(self):
