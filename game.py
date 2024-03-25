@@ -1,3 +1,4 @@
+import json
 import sys
 
 import pygame.display
@@ -87,12 +88,19 @@ class Game:
         self.lives = 3
         self.level = 0
         self.total_levels = 2
+        self.load_settings()
         self.screen_shake = 0
         self.transition = -30
         self.text_font = pygame.font.Font("assets/font/Uranus_Pixel_11Px.ttf", 30)
         self.game_over = False
         self.game_over_text = self.text_font.render("Thank you for playing!", True, (255, 0, 0))
         self.load_level(self.level)
+
+    def load_settings(self):
+        f = open("settings.json", "r")
+        game_settings = json.load(f)
+        self.total_levels = game_settings['total_levels'] - 1
+        self.lives = game_settings['lives']
 
     def load_level(self, map_id):
         pygame.mixer.music.stop()
