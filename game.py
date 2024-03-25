@@ -24,7 +24,8 @@ class Game:
         self.HEIGHT = height
         # 帧数
         self.FPS = fps
-        pygame.display.set_caption("忍者")
+        pygame.display.set_caption("Ninja_frog")
+        pygame.display.set_icon(pygame.image.load("assets/images/icon.png"))
         # 设置窗口
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         # Surface功能创建一个空的图片
