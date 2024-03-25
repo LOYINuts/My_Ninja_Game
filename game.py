@@ -1,7 +1,7 @@
 import sys
-import math
 
-import pygame
+import pygame.display
+
 from scripts.entities import *
 from scripts.utils import *
 from scripts.tilemap import TileMap
@@ -27,7 +27,8 @@ class Game:
         # 设置窗口
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
         # Surface功能创建一个空的图片
-        self.displayer = pygame.Surface((640, 480))
+        self.displayer = pygame.Surface((640, 480), pygame.SRCALPHA)
+        self.displayer_2 = pygame.Surface((640, 480))
 
         self.clock = pygame.time.Clock()
         self.movement = [False, False]
@@ -56,7 +57,22 @@ class Game:
             ),
             "gun": load_image("gun.png"),
             "projectile": load_image("projectile.png"),
+            "heart": load_image("heart.png")
         }
+        self.sfx = {
+            "jump": pygame.mixer.Sound("assets/sfx/jump.wav"),
+            "dash": pygame.mixer.Sound("assets/sfx/dash.wav"),
+            "hit": pygame.mixer.Sound("assets/sfx/hit.wav"),
+            "shoot": pygame.mixer.Sound("assets/sfx/shoot.wav"),
+            "ambience": pygame.mixer.Sound("assets/sfx/ambience.wav"),
+        }
+        self.music = load_musics("assets/music/")
+        # 音量大小
+        self.sfx['ambience'].set_volume(0.2)
+        self.sfx['shoot'].set_volume(0.4)
+        self.sfx['hit'].set_volume(0.8)
+        self.sfx['dash'].set_volume(0.3)
+        self.sfx['jump'].set_volume(0.5)
         self.clouds = Clouds(self.assets["clouds"], count=16)
 
         self.player = Player(self, (400, 100), (12, 12))
@@ -68,9 +84,22 @@ class Game:
         self.particles = []
         self.sparks = []
         self.scroll = [0, 0]
-        self.load_level(0)
+        self.lives = 3
+        self.level = 0
+        self.total_levels = 2
+        self.screen_shake = 0
+        self.transition = -30
+        self.text_font = pygame.font.Font("assets/font/Uranus_Pixel_11Px.ttf", 30)
+        self.game_over = False
+        self.game_over_text = self.text_font.render("Thank you for playing!", True, (255, 0, 0))
+        self.load_level(self.level)
 
     def load_level(self, map_id):
+        pygame.mixer.music.stop()
+        music_index = self.level % len(self.music)
+        pygame.mixer.music.load(self.music[music_index])
+        pygame.mixer.music.set_volume(0.2)
+        pygame.mixer.music.play(-1)
         self.tilemap.load('assets/maps/' + str(map_id) + '.json')
         self.leaf_spawners = []
         for tree in self.tilemap.extract([("large_decor", 2)], keep=True):
@@ -81,22 +110,55 @@ class Game:
         for spawner in self.tilemap.extract([("spawners", 0), ("spawners", 1)], keep=False):
             if spawner['variant'] == 0:
                 self.player.pos = spawner['pos']
+                self.player.air_time = 0
+                self.player.velocity = [0, 0]
+                self.player.hit = 0
             else:
                 self.enemies.append(Enemy(self, spawner['pos'], (8, 15)))
 
         self.projectiles = []
         self.particles = []
         self.scroll = [0, 0]
+        self.lives = 3
+        self.transition = -40
 
     def run(self):
+        # 参数里面是循环次数，
+        pygame.mixer.music.play(-1)
+        self.sfx["ambience"].play(-1)
         while True:
-            self.displayer.blit(
+            self.displayer.fill((0, 0, 0, 0))
+            self.displayer_2.blit(
                 pygame.transform.scale(
                     self.assets["background"], self.displayer.get_size()
                 ),
                 (0, 0),
             )
+            # 屏幕振动逐渐减少
 
+            self.screen_shake = max(0, self.screen_shake - 1)
+
+            if not len(self.enemies) and self.game_over is False:
+                self.transition += 1
+                if self.transition > 40:
+                    self.level += 1
+                    if self.level > self.total_levels:
+                        self.game_over = True
+                    else:
+                        self.load_level(self.level)
+            if self.transition < 0:
+                self.transition += 1
+
+            if self.lives <= 0 and not self.game_over:
+                self.lives -= 1
+                self.transition += 1
+                # 也相当于一个计时的功能，让玩家看到自己死
+                if self.lives < -40:
+                    self.load_level(self.level)
+            else:
+                # 展示剩余的生命值
+                for i in range(self.lives):
+                    self.displayer_2.blit(self.assets["heart"], (8 + i * 16, 0))
             self.scroll[0] += (
                                       self.player.rect().centerx
                                       - self.displayer.get_width() / 2
@@ -131,9 +193,9 @@ class Game:
             self.clouds.render(self.displayer, offset=render_scroll)
 
             self.tilemap.render(self.displayer, offset=render_scroll)
-
-            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
-            self.player.render(self.displayer, offset=render_scroll)
+            if self.lives > 0:
+                self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+                self.player.render(self.displayer, offset=render_scroll)
 
             for enemy in self.enemies.copy():
                 kill = enemy.update(self.tilemap, (0, 0))
@@ -159,7 +221,10 @@ class Game:
                 # 只要不是在冲刺过程中就判断是否击中，冲刺时是不会被击中的
                 elif abs(self.player.dashing) < 50:
                     if self.player.rect().collidepoint(projectile[0]):
+                        self.sfx['hit'].play()
                         self.player.hit = projectile[1]
+                        self.screen_shake = max(16, self.screen_shake)
+                        self.lives -= 1
                         self.projectiles.remove(projectile)
                         for i in range(15):
                             angle = random.random() * math.pi * 2
@@ -174,6 +239,11 @@ class Game:
                 spark.render(self.displayer, offset=render_scroll)
                 if kill:
                     self.sparks.remove(spark)
+            # 把displayer转换成黑白，即2种颜色的图片二进制
+            display_mask = pygame.mask.from_surface(self.displayer)
+            display_sillhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
+            for offset in [(-1, 0), (0, -1), (1, 0), (0, 1)]:
+                self.displayer_2.blit(display_sillhouette, offset)
 
             for particle in self.particles.copy():
                 kill = particle.update()
@@ -195,7 +265,8 @@ class Game:
                     if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                         self.movement[1] = True
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        self.player.jump()
+                        if self.player.jump():
+                            self.sfx['jump'].play()
                     if event.key == pygame.K_x or event.key == pygame.K_j:
                         self.player.dash()
                 if event.type == pygame.KEYUP:
@@ -204,8 +275,26 @@ class Game:
                     if event.key == pygame.K_d or event.key == pygame.K_RIGHT:
                         self.movement[1] = False
 
+            if self.transition:
+                transition_surf = pygame.Surface(self.displayer.get_size())
+                pygame.draw.circle(transition_surf, (255, 255, 255),
+                                   (self.displayer.get_width() // 2, self.displayer.get_height() // 2),
+                                   (30 - abs(self.transition)) * 8)
+                transition_surf.set_colorkey((255, 255, 255))
+                self.displayer.blit(transition_surf, (0, 0))
+            screen_shake_offset = (random.random() * self.screen_shake - self.screen_shake / 2,
+                                   random.random() * self.screen_shake - self.screen_shake / 2)
+            # 游戏结束打出结束文字
+            if self.game_over:
+                self.displayer.blit(self.game_over_text,
+                                    (self.displayer.get_width() // 2 - self.game_over_text.get_width() // 2,
+                                     self.displayer.get_height() // 2 - self.game_over_text.get_height() // 2))
+                pygame.display.flip()
+
+            self.displayer_2.blit(self.displayer, (0, 0))
+
             self.screen.blit(
-                pygame.transform.scale(self.displayer, self.screen.get_size()), (0, 0)
+                pygame.transform.scale(self.displayer_2, self.screen.get_size()), screen_shake_offset
             )
             # 更新窗口上的东西，把东西画出来
             pygame.display.update()

@@ -1,9 +1,5 @@
-import math
 import random
 
-import pygame
-
-from scripts.utils import Animation
 from scripts.particle import *
 from scripts.spark import *
 
@@ -131,11 +127,13 @@ class Enemy(PhysicsEntity):
                 if abs(dis[1]) < 16:
                     # 敌人朝左边，玩家也在敌人左边
                     if self.flip and dis[0] < 0:
+                        self.game.sfx['shoot'].play()
                         self.game.projectiles.append([[self.rect().centerx - 7, self.rect().centery], -1.5, 0])
                         for i in range(4):
                             self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5 + math.pi,
                                                           2 + random.random()))
                     if not self.flip and dis[0] > 0:
+                        self.game.sfx['shoot'].play()
                         self.game.projectiles.append([[self.rect().centerx + 7, self.rect().centery], 1.5, 0])
                         for i in range(4):
                             self.game.sparks.append(Spark(self.game.projectiles[-1][0], random.random() - 0.5,
@@ -152,6 +150,8 @@ class Enemy(PhysicsEntity):
             self.set_action('idle')
         if abs(self.game.player.dashing) >= 50:
             if self.rect().colliderect(self.game.player.rect()):
+                self.game.sfx['hit'].play()
+                self.game.screen_shake = max(16, self.game.screen_shake)
                 for i in range(15):
                     angle = random.random() * math.pi * 2
                     speed = random.random() * 5
@@ -195,6 +195,11 @@ class Player(PhysicsEntity):
         else:
             self.anim_offset = (0, -3)
         self.air_time += 1
+        if self.air_time > 180:
+            self.game.lives = 0
+            self.game.sfx['hit'].play()
+            if not self.game.game_over:
+                self.game.screen_shake = max(16, self.game.screen_shake)
         if self.collisions["down"]:
             self.air_time = 0
             self.jumps = 1
@@ -255,6 +260,7 @@ class Player(PhysicsEntity):
 
     def jump(self):
         if self.wall_slide:
+
             if self.flip and self.last_movement[0] < 0:
                 self.velocity[0] = 3.5
                 self.velocity[1] = -2.5
@@ -283,6 +289,7 @@ class Player(PhysicsEntity):
 
     def dash(self):
         if not self.dashing:
+            self.game.sfx['dash'].play()
             if self.flip:
                 self.dashing = -60
             else:

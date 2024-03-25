@@ -40,11 +40,9 @@ class Editor:
 
         try:
             self.tilemap.load('map.json')
-            msg = messagebox.showinfo(title="提示", message="成功读取map.json")
+            messagebox.showinfo(title="提示", message="成功读取map.json")
         except FileNotFoundError:
-            msg = messagebox.showinfo(title="提示",
-                                      message="未找到map.json，已重新创建(map.json应该放在与执行文件同目录下)")
-            print(msg)
+            messagebox.showinfo(title="提示", message="未找到map.json，已重新创建(map.json应该放在与执行文件同目录下)")
             pass
 
         self.scroll = [0, 0]

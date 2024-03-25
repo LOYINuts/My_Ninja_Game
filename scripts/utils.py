@@ -5,6 +5,13 @@ import pygame
 BASE_IMG_PATH = 'assets/images/'
 
 
+def load_musics(path):
+    music_list = []
+    for music_name in sorted(os.listdir(path)):
+        music_list.append(path + music_name)
+    return music_list
+
+
 def load_image(path):
     # convert能让图片更好粘贴，提高性能
     """
